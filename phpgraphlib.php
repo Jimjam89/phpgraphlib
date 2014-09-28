@@ -56,8 +56,8 @@ class PHPGraphLib {
 	const DATA_VALUE_PADDING = 5;
 
 	//default margin % of width / height
-	const X_AXIS_MARGIN_PERCENT = 12;
-	const Y_AXIS_MARGIN_PERCENT = 8;
+	const X_AXIS_MARGIN_PERCENT = 15; //James - Changed size from 12 to 15 to provide extra space for the wrapped labels.
+	const Y_AXIS_MARGIN_PERCENT = 5;
 
 	//controls auto-adjusting grid interval
 	const RANGE_DIVISOR_FACTOR = 25;
@@ -119,6 +119,7 @@ class PHPGraphLib {
 	protected $background_color;
 	protected $grid_color;
 	protected $bar_color;
+	protected $different_bar_color = array();
 	protected $outline_color;
 	protected $x_axis_text_color;
 	protected $y_axis_text_color;
@@ -401,7 +402,26 @@ class PHPGraphLib {
 					if ($this->bool_gradient) {
 						//draw gradient if desired
 						$this->drawGradientBar($x1, $y1, $x2, $y2, $this->multi_gradient_colors_1[$data_set_num], $this->multi_gradient_colors_2[$data_set_num], $data_set_num);
-					} else {
+					} elseif(!is_array($this->different_bar_color[$key])) {
+ 						imagefilledrectangle($this->image, $x1, $y1,$x2, $y2,  $this->different_bar_color[$key]);
+					}
+					elseif(is_array($this->different_bar_color[$key])) {
+						$count = count($this->different_bar_color[$key]);
+						//print_r($count);
+						$old_x1 = $x1;
+						$old_x2 = $x2;
+						$increment = ($x2 - $x1) / $count;
+						$x2 = $x1 + $increment;
+						//print_r($this->multi_color_bar);
+						foreach($this->different_bar_color[$key] as $color) {
+ 							imagefilledrectangle($this->image, $x1, $y1,$x2, $y2,  $color);
+							$x1 += $increment;
+							$x2 += $increment;	
+						}
+						$x1 = $old_x1;
+						$x2 = $old_x2;
+					}
+					else {
 						imagefilledrectangle($this->image, $x1, $y1,$x2, $y2,  $this->multi_bar_colors[$data_set_num]);
 					}
 					//draw bar outline	
@@ -503,7 +523,14 @@ class PHPGraphLib {
 									$this->x_axis_value_interval_counter = 0;
 								}
 							} else {
-								imagestring($this->image, 2, $textHorizPos, $textVertPos, $key,  $this->x_axis_text_color);
+								$wrapped = explode(' ' , $key);
+								$n = 0;
+								foreach($wrapped as $word) {
+									$textHorizPos = round($xStart + ($this->bar_width / 2) - ((strlen($word) * self::TEXT_WIDTH) / 2));
+									imagestring($this->image, 2, $textHorizPos, $textVertPos + $n, $word,  $this->x_axis_text_color);
+									$n += 13;
+								}
+								//imagestring($this->image, 2, $textHorizPos, $textVertPos, $key,  $this->x_axis_text_color);
 							}
 						}
 					}
@@ -1425,7 +1452,20 @@ class PHPGraphLib {
 			}
 		}
 	}
-
+	//function to allow user to display a bar graph with different colours for each bar (either solid or range of colours).
+	public function setBarColors($color_array) {
+		//$color_array is an array of the colours for each bar where the key is the name of the data and the value is an array of colours
+		foreach ($color_array as $key => $colors) {
+			if(is_array($colors)) {
+				foreach($colors as $color) {
+					$this->setGenericColor($color, '$this->different_bar_color["'.$key.'"][]', 'error');
+				}
+			} else {
+				$this->setGenericColor($colors, '$this->different_bar_color["'.$key.'"]', 'error');
+			}
+		}
+	}
+	
 	public function setGridColor($color)
 	{
 		$this->setGenericColor($color, '$this->grid_color', "Grid color not specified properly.");
